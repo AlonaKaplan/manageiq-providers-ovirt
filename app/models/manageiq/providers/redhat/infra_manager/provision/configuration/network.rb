@@ -8,14 +8,10 @@ module ManageIQ::Providers::Redhat::InfraManager::Provision::Configuration::Netw
       return
     end
 
-    requested_vnics.stretch!(destination_vnics).each_with_index do |requested_vnic, idx|
-      if requested_vnic.nil?
-        # Remove any unneeded vm nics
-        destination_vnics[idx].destroy
-      else
-        # Create or update existing nics
-        configure_vnic(requested_vnic, "nic#{idx + 1}", destination_vnics[idx])
-      end
+    if destination.ext_management_system.supports_update_vnic_profile?
+      configure_v4_vnics(requested_vnics)
+    else
+      configure_v3_vnics(requested_vnics)
     end
   end
 
@@ -65,7 +61,22 @@ module ManageIQ::Providers::Redhat::InfraManager::Provision::Configuration::Netw
     end
   end
 
-  def configure_vnic(network_hash, name, vnic)
+  def createNewVnicName(idx)
+    "nic#{idx + 1}"
+  end
+
+  def configure_v3_vnics(requested_vnics)
+    requested_vnics.stretch!(destination_vnics).each_with_index do |requested_vnic, idx|
+      if requested_vnic.nil?
+        # Remove any unneeded vm nics
+        destination_vnics[idx].destroy
+      else
+        configure_v3_vnic(createNewVnicName(idx), requested_vnic, destination_vnics[idx])
+      end
+    end
+  end
+
+  def configure_v3_vnic(name, network_hash, vnic)
     mac_addr  = network_hash[:mac_address]
     network   = find_network_in_cluster(network_hash[:network])
     raise MiqException::MiqProvisionError, "Unable to find specified network: <#{network_hash[:network]}>" if network.nil?
@@ -80,4 +91,38 @@ module ManageIQ::Providers::Redhat::InfraManager::Provision::Configuration::Netw
       :logger    => _log
     )
   end
+
+  def configure_v4_vnics(requested_vnics)
+    destination.ext_management_system.with_provider_connection(:version => 4) do |connection|
+      nics_service = connection.system_service.vms_service.vm_service(destination.uid_ems).nics_service
+
+      requested_vnics.stretch!(destination_vnics).each_with_index do |requested_vnic, idx|
+        if requested_vnic.nil?
+          nics_service.nic_service(destination_vnics[idx][:id]).remove
+        else
+          configure_v4_vnic(requested_vnic, createNewVnicName(idx), destination_vnics[idx], nics_service)
+        end
+      end
+    end
+  end
+
+  def configure_v4_vnic(network_hash, name, vnic, nics_service)
+    profile_id = network_hash[:network]
+    if profile_id == '<Empty>'
+      profile_id = nil
+    end
+
+    options = {
+        :name => name,
+        :vnic_profile => {id: profile_id},
+        :mac_address => network_hash[:mac_address],
+    }.delete_blanks
+
+    if vnic.nil?
+      nics_service.add(OvirtSDK4::Nic.new(options))
+    else
+      nics_service.nic_service(vnic[:id]).update(options)
+    end
+  end
+
 end

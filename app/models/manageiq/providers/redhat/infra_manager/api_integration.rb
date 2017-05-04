@@ -252,7 +252,8 @@ module ManageIQ::Providers::Redhat::InfraManager::ApiIntegration
         :migrate,
         :quick_stats,
         :reconfigure_disks,
-        :snapshots
+        :snapshots,
+        :update_vnic_profile,
       ]
     end
 
