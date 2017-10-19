@@ -24,7 +24,21 @@ class ManageIQ::Providers::Redhat::InfraManager < ManageIQ::Providers::InfraMana
 
   before_save :ensure_managers
 
+  def ensure_network_manager_queue()
+    MiqQueue.put(
+      :class_name  => self.class.name,
+      :instance_id => id,
+      :method_name => 'create_or_update_network_manager',
+      :zone        => my_zone,
+      :args        => []
+    )
+  end
+
   def ensure_network_manager
+    ensure_network_manager_queue()
+  end
+
+  def create_or_update_network_manager
     providers = ovirt_services.collect_external_network_providers
 
     unless providers.blank?
@@ -48,6 +62,7 @@ class ManageIQ::Providers::Redhat::InfraManager < ManageIQ::Providers::InfraMana
 
       if network_manager
         populate_network_manager_connectivity(auth_url)
+        network_manager.save
       end
     elsif network_manager
       network_manager.orchestrate_destroy

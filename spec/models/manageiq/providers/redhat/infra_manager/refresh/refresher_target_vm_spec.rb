@@ -182,7 +182,7 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
     expect(Datacenter.count).to eq(1)
 
     expect(Relationship.count).to eq(9)
-    expect(MiqQueue.count).to eq(4)
+    expect(MiqQueue.count).to eq(8)
   end
 
   def assert_vm(vm, storage)

@@ -414,12 +414,11 @@ describe ManageIQ::Providers::Redhat::InfraManager do
     let(:api_version) { "4.2" }
 
     before do
-      @ems = FactoryGirl.build(:ems_redhat_with_ensure_managers, :api_version => api_version)
+      @ems = FactoryGirl.create(:ems_redhat, :api_version => api_version)
       @provider = double(:authentication_url => 'https://hostname.usersys.redhat.com:35357/v2.0')
       @providers = double("providers", :sort_by => [@provider], :first => @provider)
       allow(@ems).to receive(:ovirt_services).and_return(double(:collect_external_network_providers => @providers))
-
-      @ems.save
+      @ems.create_or_update_network_manager
     end
 
     it "does not create orphaned network_manager" do

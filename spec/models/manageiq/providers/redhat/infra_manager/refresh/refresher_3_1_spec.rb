@@ -57,7 +57,7 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
     expect(SystemService.count).to eq(0)
 
     expect(Relationship.count).to eq(81)
-    expect(MiqQueue.count).to eq(41)
+    expect(MiqQueue.count).to eq(45)
   end
 
   def assert_ems

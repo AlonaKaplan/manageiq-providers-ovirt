@@ -3,16 +3,11 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
 
   before(:each) do
     _, _, zone = EvmSpecHelper.create_guid_miq_server_zone
-    @ems = FactoryGirl.build(:ems_redhat_with_ensure_managers, :zone => zone, :hostname => "192.168.1.105", :ipaddress => "192.168.1.105",
+    @ems = FactoryGirl.create(:ems_redhat, :zone => zone, :hostname => "192.168.1.105", :ipaddress => "192.168.1.105",
                               :port => 8443)
-    @ovirt_service = ManageIQ::Providers::Redhat::InfraManager::OvirtServices::Strategies::V4
-    allow_any_instance_of(@ovirt_service)
-    allow_any_instance_of(@ovirt_service)
-      .to receive(:collect_external_network_providers).and_return(load_response_mock_for('external_network_providers'))
     @ems.update_authentication(:default => {:userid => "admin@internal", :password => "engine"})
     @ems.default_endpoint.path = "/ovirt-engine/api"
     allow(@ems).to receive(:supported_api_versions).and_return([3, 4])
-    @ems.save
     allow(@ems).to receive(:resolve_ip_address).with(ip_address).and_return(ip_address)
     stub_settings_merge(:ems => { :ems_redhat => { :use_ovirt_engine_sdk => true } })
   end
@@ -99,7 +94,7 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
 
     EmsRefresh.refresh(@vm)
 
-    assert_table_counts
+    assert_table_counts(7)
     assert_vm(@vm, @storage)
     assert_vm_rels(@vm, @hardware, @storage)
     assert_cluster(@vm)
@@ -147,15 +142,15 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
 
     EmsRefresh.refresh(@vm)
 
-    assert_table_counts
+    assert_table_counts(6)
     assert_vm(@vm, @storage)
     assert_vm_rels(@vm, @hardware, @storage)
     assert_cluster(@vm)
     assert_storage(@storage, @vm)
   end
 
-  def assert_table_counts
-    expect(ExtManagementSystem.count).to eq(2)
+  def assert_table_counts(queue_count)
+    expect(ExtManagementSystem.count).to eq(1)
     expect(EmsCluster.count).to eq(1)
     expect(ResourcePool.count).to eq(1)
     expect(Vm.count).to eq(1)
@@ -168,7 +163,7 @@ describe ManageIQ::Providers::Redhat::InfraManager::Refresh::Refresher do
     expect(Datacenter.count).to eq(1)
 
     expect(Relationship.count).to eq(9)
-    expect(MiqQueue.count).to eq(4)
+    expect(MiqQueue.count).to eq(queue_count)
   end
 
   def assert_vm(vm, storage)
