@@ -118,6 +118,19 @@ class ManageIQ::Providers::Redhat::InfraManager::ProvisionWorkflow < MiqProvisio
     ems.ovirt_services.load_allowed_networks(hosts, vlans, self) if ems
   end
 
+  def ws_network_fields(values, fields, data)
+    requested_vlan = data[:vlan]
+    super(values, fields, data)
+
+    if values[:vlan].nil?
+      return if (dlg_fields = get_ws_dialog_fields(dialog_name = :network)).nil?
+      dlg_fields_vlan = dlg_fields[:vlan]
+      field_values = dlg_fields_vlan[:values] if dlg_fields_vlan
+      detected_field = field_values.values.detect { |value| value == requested_vlan } if field_values
+      values[:vlan] = detected_field if detected_field
+    end
+  end
+
   def filter_allowed_hosts(all_hosts)
     ems = source_ems
     return all_hosts unless ems
